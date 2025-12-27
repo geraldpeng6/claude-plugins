@@ -11,10 +11,19 @@ A collection of plugins for [Claude Code](https://claude.ai/code).
 ## Installation
 
 ```bash
-# Install from this marketplace
-/plugins install <plugin-name> --from github:geraldpeng6/claude-plugins
+# 1. Add marketplace (one-time setup)
+/plugins marketplace add geraldpeng6/claude-plugins
 
-# Or load locally for development
+# 2. Install plugins
+/plugins install mitm-analyzer
+
+# Or install directly without adding marketplace
+/plugins install mitm-analyzer --from github:geraldpeng6/claude-plugins
+```
+
+### Local Development
+
+```bash
 claude --plugin-dir ./mitm-analyzer
 ```
 

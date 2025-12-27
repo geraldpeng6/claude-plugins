@@ -1,0 +1,15 @@
+{
+  "name": "geraldpeng6-plugins",
+  "owner": {
+    "name": "geraldpeng6"
+  },
+  "plugins": [
+    {
+      "name": "mitm-analyzer",
+      "source": "./mitm-analyzer",
+      "description": "使用 mitmproxy 捕获流量并生成 OpenAPI 文档",
+      "version": "0.1.0",
+      "license": "MIT"
+    }
+  ]
+}
