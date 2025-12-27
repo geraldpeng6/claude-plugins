@@ -1,0 +1,10 @@
+{
+  "name": "mitm-analyzer",
+  "version": "0.1.0",
+  "description": "使用 mitmproxy 捕获流量并生成 OpenAPI 文档，用于逆向分析网站 API",
+  "author": {
+    "name": "jiale"
+  },
+  "repository": "https://github.com/geraldpeng6/claude-plugins",
+  "license": "MIT"
+}
