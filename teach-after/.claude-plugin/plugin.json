@@ -1,0 +1,10 @@
+{
+  "name": "teach-after",
+  "version": "0.1.0",
+  "description": "事后复盘教学 - 在功能实现或 bug 修复后进行系统性复盘与深入理解",
+  "author": {
+    "name": "jiale"
+  },
+  "repository": "https://github.com/geraldpeng6/claude-plugins",
+  "license": "MIT"
+}
