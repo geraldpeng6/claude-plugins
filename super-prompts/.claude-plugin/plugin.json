@@ -1,0 +1,10 @@
+{
+  "name": "super-prompts",
+  "version": "0.1.0",
+  "description": "超级提示词模板集合 - 7个强大的深度思考提示词",
+  "author": {
+    "name": "jiale"
+  },
+  "repository": "https://github.com/geraldpeng6/claude-plugins",
+  "license": "MIT"
+}
