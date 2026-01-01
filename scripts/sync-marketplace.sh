@@ -8,7 +8,9 @@ MARKETPLACE="$REPO_ROOT/.claude-plugin/marketplace.json"
 cat > "$MARKETPLACE" << 'EOF'
 {
   "name": "geraldpeng6-plugins",
-  "owner": "geraldpeng6",
+  "owner": {
+    "name": "geraldpeng6"
+  },
   "plugins": [
 EOF
 

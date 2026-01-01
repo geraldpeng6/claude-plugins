@@ -1,6 +1,8 @@
 {
   "name": "geraldpeng6-plugins",
-  "owner": "geraldpeng6",
+  "owner": {
+    "name": "geraldpeng6"
+  },
   "plugins": [
     {
       "name": "mitm-analyzer",
