@@ -1,0 +1,24 @@
+# MD Converter 配置文件
+# 复制此文件为 config.yaml 并填入你的配置
+
+# OpenAI API 配置 (用于图片描述)
+openai:
+  api_key: "sk-xxx"
+  base_url: "https://api.openai.com/v1"
+  model: "gpt-4o"
+  # 图片描述提示词
+  image_prompt: "请详细描述这张图片的内容"
+
+# 音频转录配置
+audio:
+  # 使用 OpenAI Whisper API
+  use_openai: false
+  # 或使用本地 speech_recognition
+  language: "zh-CN"
+
+# PDF 输出配置
+pdf:
+  # LaTeX 引擎: xelatex, pdflatex, lualatex
+  engine: "xelatex"
+  # 中文字体
+  cjk_font: "PingFang SC"
