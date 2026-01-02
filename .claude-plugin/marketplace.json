@@ -5,6 +5,13 @@
   },
   "plugins": [
     {
+      "name": "md",
+      "source": "./md",
+      "description": "双向文档转换 - PDF/DOCX/XLSX/PPTX/HTML/LaTeX ↔ MD，支持YouTube字幕、音频转录、图片描述、OCR",
+      "version": "0.1.0",
+      "license": "MIT"
+    },
+    {
       "name": "mitm-analyzer",
       "source": "./mitm-analyzer",
       "description": "使用 mitmproxy 捕获流量并生成 OpenAPI 文档，用于逆向分析网站 API",
