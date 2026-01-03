@@ -6,19 +6,19 @@
 # ]
 # ///
 """
-whisper: 音视频转文字工具
+whisper: Audio/video transcription tool.
 
-用法:
-    单次运行: ./whisper.py audio.mp3
-    视频文件: ./whisper.py video.mp4
-    翻译模式: ./whisper.py -t audio.mp3
-    服务模式: ./whisper.py --serve
+Usage:
+    Single run: ./whisper.py audio.mp3
+    Video file: ./whisper.py video.mp4
+    Translate: ./whisper.py -t audio.mp3
+    Server mode: ./whisper.py --serve
 """
 
-import sys
 import argparse
 import json
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -27,12 +27,12 @@ VIDEO_EXTENSIONS = {'.mp4', '.mkv', '.mov', '.avi', '.webm', '.flv', '.wmv', '.m
 
 
 def is_video_file(path: str) -> bool:
-    """判断是否为视频文件"""
+    """Check if file is a video file."""
     return Path(path).suffix.lower() in VIDEO_EXTENSIONS
 
 
 def extract_audio(video_path: str, output_path: str) -> bool:
-    """使用 ffmpeg 提取音频"""
+    """Extract audio from video using ffmpeg."""
     cmd = [
         "ffmpeg", "-y", "-i", video_path,
         "-vn", "-acodec", "pcm_s16le",
@@ -44,15 +44,19 @@ def extract_audio(video_path: str, output_path: str) -> bool:
 
 
 def check_ffmpeg() -> bool:
-    """检查 ffmpeg 是否可用"""
+    """Check if ffmpeg is available."""
     return subprocess.run(["which", "ffmpeg"], capture_output=True).returncode == 0
 
 
-def transcribe(audio_path: str, translate: bool = False, language: str = None, 
-               model: str = "mlx-community/whisper-large-v3-mlx") -> str:
-    """转录或翻译音频文件"""
-    import mlx_whisper
-    
+def transcribe(
+    audio_path: str,
+    translate: bool = False,
+    language: str | None = None,
+    model: str = "mlx-community/whisper-large-v3-mlx",
+) -> str:
+    """Transcribe or translate audio file."""
+    import mlx_whisper  # type: ignore[import-untyped]
+
     task = "translate" if translate else "transcribe"
     kwargs = {"path_or_hf_repo": model, "task": task}
     if language:
@@ -61,22 +65,26 @@ def transcribe(audio_path: str, translate: bool = False, language: str = None,
     return result["text"].strip()
 
 
-def process_file(file_path: str, translate: bool = False, language: str = None,
-                 model: str = "mlx-community/whisper-large-v3-mlx") -> str:
-    """处理音频或视频文件"""
+def process_file(
+    file_path: str,
+    translate: bool = False,
+    language: str | None = None,
+    model: str = "mlx-community/whisper-large-v3-mlx",
+) -> str:
+    """Process audio or video file."""
     if is_video_file(file_path):
         if not check_ffmpeg():
             print("错误: 需要安装 ffmpeg", file=sys.stderr)
             sys.exit(1)
-        
-        print(f"检测到视频文件，提取音频: {file_path}", file=sys.stderr)
+
+        print(f"检测到视频文件, 提取音频: {file_path}", file=sys.stderr)
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
             temp_audio = f.name
-        
+
         if not extract_audio(file_path, temp_audio):
             print("错误: 音频提取失败", file=sys.stderr)
             sys.exit(1)
-        
+
         try:
             return transcribe(temp_audio, translate, language, model)
         finally:
@@ -85,30 +93,36 @@ def process_file(file_path: str, translate: bool = False, language: str = None,
         return transcribe(file_path, translate, language, model)
 
 
-def serve(host: str = "127.0.0.1", port: int = 8765, model: str = "mlx-community/whisper-large-v3-mlx"):
-    """启动HTTP服务"""
-    from http.server import HTTPServer, BaseHTTPRequestHandler
-    import mlx_whisper
-    from mlx_whisper import load_models
-    
+def serve(
+    host: str = "127.0.0.1",
+    port: int = 8765,
+    model: str = "mlx-community/whisper-large-v3-mlx",
+) -> None:
+    """Start HTTP server for transcription."""
+    from http.server import BaseHTTPRequestHandler
+    from http.server import HTTPServer
+
+    import mlx_whisper  # type: ignore[import-untyped]
+    from mlx_whisper import load_models  # type: ignore[import-untyped]
+
     # 预加载模型
     print(f"加载模型: {model}", file=sys.stderr)
     load_models.load_model(model)
     print(f"服务启动: http://{host}:{port}", file=sys.stderr)
-    
+
     class Handler(BaseHTTPRequestHandler):
-        def log_message(self, format, *args):
+        def log_message(self, format: str, *args: object) -> None:
             pass
-        
-        def do_POST(self):
+
+        def do_POST(self) -> None:
             content_length = int(self.headers.get('Content-Length', 0))
             translate = self.headers.get('X-Translate', 'false').lower() == 'true'
             language = self.headers.get('X-Language', None)
-            
+
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
                 f.write(self.rfile.read(content_length))
                 temp_path = f.name
-            
+
             try:
                 task = "translate" if translate else "transcribe"
                 kwargs = {"path_or_hf_repo": model, "task": task}
@@ -116,18 +130,19 @@ def serve(host: str = "127.0.0.1", port: int = 8765, model: str = "mlx-community
                     kwargs["language"] = language
                 result = mlx_whisper.transcribe(temp_path, **kwargs)
                 text = result["text"].strip()
-                
+
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"text": text}).encode())
             finally:
                 Path(temp_path).unlink(missing_ok=True)
-    
+
     HTTPServer((host, port), Handler).serve_forever()
 
 
-def main():
+def main() -> None:
+    """Entry point for whisper CLI."""
     parser = argparse.ArgumentParser(
         description="音视频转文字 (mlx-whisper)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -146,9 +161,9 @@ def main():
     parser.add_argument("--serve", action="store_true", help="启动HTTP服务")
     parser.add_argument("--host", default="127.0.0.1", help="服务地址")
     parser.add_argument("--port", type=int, default=8765, help="服务端口")
-    
+
     args = parser.parse_args()
-    
+
     if args.serve:
         serve(args.host, args.port, args.model)
     elif args.file:
