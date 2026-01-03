@@ -12,13 +12,6 @@
       "license": "MIT"
     },
     {
-      "name": "mitm-analyzer",
-      "source": "./mitm-analyzer",
-      "description": "使用 mitmproxy 捕获流量并生成 OpenAPI 文档，用于逆向分析网站 API",
-      "version": "0.1.0",
-      "license": "MIT"
-    },
-    {
       "name": "super-prompts",
       "source": "./super-prompts",
       "description": "超级提示词模板集合 - 7个强大的深度思考提示词",
