@@ -24,13 +24,6 @@
       "description": "超级提示词模板集合 - 7个强大的深度思考提示词",
       "version": "0.1.0",
       "license": "MIT"
-    },
-    {
-      "name": "teach-after",
-      "source": "./teach-after",
-      "description": "事后复盘教学 - 在功能实现或 bug 修复后进行系统性复盘与深入理解",
-      "version": "0.1.0",
-      "license": "MIT"
     }
 
   ]

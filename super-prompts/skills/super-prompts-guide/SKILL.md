@@ -12,9 +12,11 @@
 - `/super-prompts:master-skill` - 大师技能
 - `/super-prompts:multiverse` - 多元宇宙
 - `/super-prompts:super-ai` - 超级AI
+- `/super-prompts:teach-after` - 事后复盘教学
 
 ## 使用示例
 
 ```
 /super-prompts:think-like 爱因斯坦
+/super-prompts:teach-after 登录失败 bug
 ```
