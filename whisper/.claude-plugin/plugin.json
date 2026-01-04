@@ -1,0 +1,10 @@
+{
+  "name": "whisper",
+  "version": "0.1.0",
+  "description": "Whisper 音视频转录 - 本地离线转录，支持多语言和字幕输出",
+  "author": {
+    "name": "jiale"
+  },
+  "repository": "https://github.com/geraldpeng6/claude-plugins",
+  "license": "MIT"
+}

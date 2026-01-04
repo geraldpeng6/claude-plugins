@@ -12,9 +12,23 @@
       "license": "MIT"
     },
     {
+      "name": "mitm",
+      "source": "./mitm",
+      "description": "MITM 中间人攻击分析工具 - HTTPS流量拦截、证书安装、抓包转换",
+      "version": "0.1.0",
+      "license": "MIT"
+    },
+    {
       "name": "super-prompts",
       "source": "./super-prompts",
       "description": "超级提示词模板集合 - 7个强大的深度思考提示词",
+      "version": "0.1.0",
+      "license": "MIT"
+    },
+    {
+      "name": "whisper",
+      "source": "./whisper",
+      "description": "Whisper 音视频转录 - 本地离线转录，支持多语言和字幕输出",
       "version": "0.1.0",
       "license": "MIT"
     }
