@@ -1,0 +1,10 @@
+{
+  "name": "mitm",
+  "version": "0.1.0",
+  "description": "MITM 中间人攻击分析工具 - HTTPS流量拦截、证书安装、抓包转换",
+  "author": {
+    "name": "jiale"
+  },
+  "repository": "https://github.com/geraldpeng6/claude-plugins",
+  "license": "MIT"
+}
