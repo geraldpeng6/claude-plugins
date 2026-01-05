@@ -16,27 +16,36 @@ uv run --script scripts/whisper.py --help
 
 ## 输出说明
 
-**⚠️ 重要**: 转录结果直接输出到终端（stdout），不会自动保存文件。
+**默认行为**: 转录结果自动保存到输入文件同目录，文件名为 `输入文件名.txt`
 
-如需保存结果，请使用重定向：
+例如：`video.mp4` → `video.txt`（保存在同一目录）
+
 ```bash
-uv run --script scripts/whisper.py video.mp4 > output.txt
+# 默认保存到同目录
+uv run --script scripts/whisper.py video.mp4
+# 输出: video.txt
+
+# 指定输出路径
+uv run --script scripts/whisper.py -o ~/output.txt video.mp4
+
+# 输出到终端（不保存文件）
+uv run --script scripts/whisper.py --stdout video.mp4
 ```
 
 ## 基本用法
 
 ```bash
-# 转录音频（输出到终端）
+# 转录音频（保存到 audio.txt）
 uv run --script scripts/whisper.py audio.mp3
 
-# 转录视频（自动提取音频）
+# 转录视频（保存到 video.txt）
 uv run --script scripts/whisper.py video.mp4
 
 # 指定源语言
 uv run --script scripts/whisper.py -l zh audio.mp3
 
-# 保存结果到文件
-uv run --script scripts/whisper.py video.mp4 > transcript.txt
+# 指定输出文件
+uv run --script scripts/whisper.py -o result.txt video.mp4
 ```
 
 ## 支持的格式

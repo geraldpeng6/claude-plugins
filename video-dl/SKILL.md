@@ -14,10 +14,18 @@ description: 视频下载工具。从 YouTube、Bilibili 等网站下载视频�
 uv run --script scripts/video-dl.py --help
 ```
 
+## 输出目录
+
+**默认下载位置**（按平台）：
+- **macOS/Linux**: `~/Downloads`
+- **Windows**: `%USERPROFILE%\Downloads`
+
+可用 `-o` 参数指定其他目录。
+
 ## 基本用法
 
 ```bash
-# 下载视频（最佳画质）
+# 下载视频（保存到 ~/Downloads）
 uv run --script scripts/video-dl.py https://www.youtube.com/watch?v=xxx
 
 # 仅下载字幕

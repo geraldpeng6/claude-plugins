@@ -154,8 +154,10 @@ def main() -> None:
         """
     )
     parser.add_argument("file", nargs="?", help="音频或视频文件路径")
+    parser.add_argument("-o", "--output", help="输出文件路径 (默认: 输入文件同目录.txt)")
     parser.add_argument("-l", "--language", help="源语言代码 (如: zh, ja, en)")
     parser.add_argument("-m", "--model", default="large-v3", help="模型名称")
+    parser.add_argument("--stdout", action="store_true", help="输出到终端而非文件")
     parser.add_argument("--serve", action="store_true", help="启动HTTP服务")
     parser.add_argument("--host", default="127.0.0.1", help="服务地址")
     parser.add_argument("--port", type=int, default=8765, help="服务端口")
@@ -171,7 +173,20 @@ def main() -> None:
         if not Path(args.file).exists():
             print(f"错误: 文件不存在: {args.file}", file=sys.stderr)
             sys.exit(1)
-        print(process_file(args.file, False, args.language, args.model))
+        
+        result = process_file(args.file, False, args.language, args.model)
+        
+        if args.stdout:
+            # 输出到终端
+            print(result)
+        else:
+            # 保存到文件
+            if args.output:
+                output_path = Path(args.output)
+            else:
+                output_path = Path(args.file).with_suffix(".txt")
+            output_path.write_text(result, encoding="utf-8")
+            print(f"已保存到: {output_path}", file=sys.stderr)
     else:
         if sys.stdin.isatty():
             parser.print_help()
