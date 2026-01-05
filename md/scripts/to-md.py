@@ -2,17 +2,14 @@
 # /// script
 # requires-python = ">=3.10"
 # dependencies = [
-#     "markitdown",
+#     "markitdown[audio-transcription,youtube-transcription]",
 #     "openai",
 #     "pyyaml",
-#     "pydub",
-#     "SpeechRecognition",
-#     "youtube-transcript-api",
 # ]
 # ///
 """
 将文件转换为 Markdown 格式
-支持: PDF, DOCX, XLSX, PPTX, HTML, 图片, 音频 等
+支持: PDF, DOCX, XLSX, PPTX, HTML, 图片, 音频, YouTube URL 等
 """
 
 import sys
