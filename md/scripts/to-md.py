@@ -12,7 +12,7 @@
 # ///
 """
 将文件转换为 Markdown 格式
-支持: PDF, DOCX, XLSX, PPTX, HTML, LaTeX, 图片, 音频 等
+支持: PDF, DOCX, XLSX, PPTX, HTML, 图片, 音频 等
 """
 
 import sys
@@ -56,39 +56,28 @@ def main():
         else:
             output_file = input_file.with_suffix('.md')
 
-    # LaTeX 文件使用 pandoc
-    if not is_url and input_file.suffix.lower() in ['.tex', '.latex']:
-        import subprocess
-        result = subprocess.run(
-            ['pandoc', str(input_file), '-o', str(output_file)],
-            capture_output=True, text=True
+    from markitdown import MarkItDown  # type: ignore[import-untyped]
+    config = load_config()
+    openai_config = config.get('openai', {})
+
+    # 如果配置了 OpenAI，启用图片描述
+    if openai_config.get('api_key'):
+        from openai import OpenAI  # type: ignore[import-untyped]
+        client = OpenAI(
+            api_key=openai_config['api_key'],
+            base_url=openai_config.get('base_url', 'https://api.openai.com/v1')
         )
-        if result.returncode != 0:
-            print(f"错误: {result.stderr}")
-            sys.exit(1)
+        md = MarkItDown(
+            llm_client=client,
+            llm_model=openai_config.get('model', 'gpt-4o')
+        )
     else:
-        from markitdown import MarkItDown
-        config = load_config()
-        openai_config = config.get('openai', {})
-        
-        # 如果配置了 OpenAI，启用图片描述
-        if openai_config.get('api_key'):
-            from openai import OpenAI
-            client = OpenAI(
-                api_key=openai_config['api_key'],
-                base_url=openai_config.get('base_url', 'https://api.openai.com/v1')
-            )
-            md = MarkItDown(
-                llm_client=client,
-                llm_model=openai_config.get('model', 'gpt-4o')
-            )
-        else:
-            md = MarkItDown()
-        
-        # 获取自定义 prompt
-        llm_prompt = openai_config.get('image_prompt')
-        result = md.convert(input_source, llm_prompt=llm_prompt)
-        output_file.write_text(result.text_content, encoding='utf-8')
+        md = MarkItDown()
+
+    # 获取自定义 prompt
+    llm_prompt = openai_config.get('image_prompt')
+    result = md.convert(input_source, llm_prompt=llm_prompt)
+    output_file.write_text(result.text_content, encoding='utf-8')
 
     print(f"已保存到: {output_file}")
 
