@@ -1,13 +1,13 @@
 #!/usr/bin/env -S uv run --script
 # /// script
-# requires-python = ">=3.11,<3.13"
+# requires-python = ">=3.10,<3.13"
 # dependencies = [
 #     "imageio-ffmpeg",
-#     "faster-whisper",
+#     "pywhispercpp",
 #     "mlx-whisper>=0.4",
 # ]
 # ///
-"""Benchmark mlx-whisper vs faster-whisper."""
+"""Benchmark mlx-whisper vs whisper.cpp (pywhispercpp)."""
 
 import subprocess
 import sys
@@ -40,13 +40,13 @@ def benchmark_mlx(audio_path: str) -> tuple[str, float]:
     return result["text"].strip(), elapsed
 
 
-def benchmark_faster(audio_path: str) -> tuple[str, float]:
-    """Benchmark faster-whisper."""
-    from faster_whisper import WhisperModel  # type: ignore[import-untyped]
+def benchmark_whispercpp(audio_path: str) -> tuple[str, float]:
+    """Benchmark whisper.cpp via pywhispercpp."""
+    from pywhispercpp.model import Model  # type: ignore[import-untyped]
     
     start = time.time()
-    model = WhisperModel("large-v3", device="cpu", compute_type="int8")
-    segments, _ = model.transcribe(audio_path)
+    model = Model("large-v3", n_threads=8)
+    segments = model.transcribe(audio_path)
     text = "".join(seg.text for seg in segments).strip()
     elapsed = time.time() - start
     return text, elapsed
@@ -78,16 +78,19 @@ def main() -> None:
 
     print()
 
-    # Faster-Whisper
-    print("Testing faster-whisper (Cross-platform)...")
-    faster_text, faster_time = benchmark_faster(audio_path)
-    print(f"  Time: {faster_time:.2f}s")
-    print(f"  Text: {faster_text[:100]}...")
+    # whisper.cpp
+    print("Testing whisper.cpp (CPU/Vulkan)...")
+    cpp_text, cpp_time = benchmark_whispercpp(audio_path)
+    print(f"  Time: {cpp_time:.2f}s")
+    print(f"  Text: {cpp_text[:100]}...")
 
     print(f"\n=== Results ===")
-    print(f"mlx-whisper:    {mlx_time:.2f}s")
-    print(f"faster-whisper: {faster_time:.2f}s")
-    print(f"Speedup: {faster_time/mlx_time:.2f}x (mlx is faster)")
+    print(f"mlx-whisper:  {mlx_time:.2f}s")
+    print(f"whisper.cpp:  {cpp_time:.2f}s")
+    if mlx_time < cpp_time:
+        print(f"Speedup: {cpp_time/mlx_time:.2f}x (mlx is faster)")
+    else:
+        print(f"Speedup: {mlx_time/cpp_time:.2f}x (whisper.cpp is faster)")
 
 
 if __name__ == "__main__":

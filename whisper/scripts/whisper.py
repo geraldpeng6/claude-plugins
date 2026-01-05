@@ -9,9 +9,10 @@
 """
 whisper: Audio/video transcription tool.
 
-Backends:
-- Apple Silicon: mlx-whisper (GPU accelerated via Metal)
-- Other platforms: whisper.cpp via pywhispercpp (Vulkan/CPU)
+Backend: whisper.cpp via pywhispercpp
+- Apple Silicon: Metal GPU acceleration
+- AMD/Intel: Vulkan GPU acceleration
+- All platforms: Optimized CPU fallback
 
 Usage:
     Single run: ./whisper.py audio.mp3
@@ -32,11 +33,6 @@ import imageio_ffmpeg  # type: ignore[import-untyped]
 
 # Get ffmpeg path (using imageio-ffmpeg bundled ffmpeg)
 FFMPEG_PATH = imageio_ffmpeg.get_ffmpeg_exe()
-
-# Detect platform and choose whisper backend
-IS_APPLE_SILICON = (
-    platform.system() == "Darwin" and platform.machine() in ("arm64", "arm")
-)
 
 # 视频文件扩展名
 VIDEO_EXTENSIONS = {'.mp4', '.mkv', '.mov', '.avi', '.webm', '.flv', '.wmv', '.m4v'}
@@ -59,40 +55,22 @@ def extract_audio(video_path: str, output_path: str) -> bool:
     return result.returncode == 0
 
 
-def check_ffmpeg() -> bool:
-    """Check if ffmpeg is available (using imageio-ffmpeg bundled)."""
-    return True
-
-
 def transcribe(
     audio_path: str,
     translate: bool = False,
     language: str | None = None,
     model: str | None = None,
 ) -> str:
-    """Transcribe or translate audio file."""
-    if IS_APPLE_SILICON:
-        # Use mlx-whisper on Apple Silicon (faster)
-        import mlx_whisper  # type: ignore[import-untyped]
+    """Transcribe or translate audio file using whisper.cpp."""
+    from pywhispercpp.model import Model  # type: ignore[import-untyped]
 
-        model_name = model or "mlx-community/whisper-large-v3-mlx"
-        task = "translate" if translate else "transcribe"
-        kwargs = {"path_or_hf_repo": model_name, "task": task}
-        if language:
-            kwargs["language"] = language
-        result = mlx_whisper.transcribe(audio_path, **kwargs)
-        return result["text"].strip()
-    else:
-        # Use whisper.cpp via pywhispercpp (Vulkan/CPU, cross-platform)
-        from pywhispercpp.model import Model  # type: ignore[import-untyped]
-
-        model_name = model or "large-v3"
-        whisper_model = Model(model_name, n_threads=4)
-        segments = whisper_model.transcribe(
-            audio_path,
-            language=language if language else "",
-        )
-        return "".join(seg.text for seg in segments).strip()
+    model_name = model or "large-v3"
+    whisper_model = Model(model_name, n_threads=8)
+    segments = whisper_model.transcribe(
+        audio_path,
+        language=language if language else "",
+    )
+    return "".join(seg.text for seg in segments).strip()
 
 
 def process_file(
@@ -125,22 +103,13 @@ def serve(
     model: str | None = None,
 ) -> None:
     """Start HTTP server for transcription."""
-    from http.server import BaseHTTPRequestHandler
-    from http.server import HTTPServer
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from pywhispercpp.model import Model  # type: ignore[import-untyped]
 
-    if IS_APPLE_SILICON:
-        import mlx_whisper  # type: ignore[import-untyped]
-        from mlx_whisper import load_models  # type: ignore[import-untyped]
-
-        model_name = model or "mlx-community/whisper-large-v3-mlx"
-        print(f"加载模型: {model_name}", file=sys.stderr)
-        load_models.load_model(model_name)
-    else:
-        from pywhispercpp.model import Model  # type: ignore[import-untyped]
-
-        model_name = model or "large-v3"
-        print(f"加载模型: {model_name} (whisper.cpp)", file=sys.stderr)
-        # Model will be loaded on first request
+    model_name = model or "large-v3"
+    print(f"加载模型: {model_name} (whisper.cpp)", file=sys.stderr)
+    whisper_model = Model(model_name, n_threads=8)
+    print(f"服务启动: http://{host}:{port}", file=sys.stderr)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format: str, *args: object) -> None:
@@ -148,7 +117,6 @@ def serve(
 
         def do_POST(self) -> None:
             content_length = int(self.headers.get('Content-Length', 0))
-            translate = self.headers.get('X-Translate', 'false').lower() == 'true'
             language = self.headers.get('X-Language', None)
 
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
@@ -156,25 +124,11 @@ def serve(
                 temp_path = f.name
 
             try:
-                if IS_APPLE_SILICON:
-                    import mlx_whisper  # type: ignore[import-untyped]
-
-                    task = "translate" if translate else "transcribe"
-                    kwargs = {"path_or_hf_repo": model, "task": task}
-                    if language:
-                        kwargs["language"] = language
-                    result = mlx_whisper.transcribe(temp_path, **kwargs)
-                    text = result["text"].strip()
-                else:
-                    from pywhispercpp.model import Model  # type: ignore[import-untyped]
-
-                    model_name = model or "large-v3"
-                    whisper_model = Model(model_name, n_threads=4)
-                    segments = whisper_model.transcribe(
-                        temp_path,
-                        language=language if language else "",
-                    )
-                    text = "".join(seg.text for seg in segments).strip()
+                segments = whisper_model.transcribe(
+                    temp_path,
+                    language=language if language else "",
+                )
+                text = "".join(seg.text for seg in segments).strip()
 
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -189,20 +143,19 @@ def serve(
 def main() -> None:
     """Entry point for whisper CLI."""
     parser = argparse.ArgumentParser(
-        description="音视频转文字 (mlx-whisper)",
+        description="音视频转文字 (whisper.cpp)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
   %(prog)s audio.mp3              # 转录音频
   %(prog)s video.mp4              # 转录视频
-  %(prog)s -t audio.mp3           # 翻译到英语
+  %(prog)s -l zh audio.mp3        # 指定语言
   %(prog)s --serve                # 启动服务
         """
     )
     parser.add_argument("file", nargs="?", help="音频或视频文件路径")
-    parser.add_argument("-t", "--translate", action="store_true", help="翻译到英语")
     parser.add_argument("-l", "--language", help="源语言代码 (如: zh, ja, en)")
-    parser.add_argument("-m", "--model", help="模型名称 (默认: 自动选择)")
+    parser.add_argument("-m", "--model", default="large-v3", help="模型名称")
     parser.add_argument("--serve", action="store_true", help="启动HTTP服务")
     parser.add_argument("--host", default="127.0.0.1", help="服务地址")
     parser.add_argument("--port", type=int, default=8765, help="服务端口")
@@ -210,10 +163,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Show platform info
-    if IS_APPLE_SILICON:
-        print("使用 mlx-whisper (Apple Silicon GPU)", file=sys.stderr)
-    else:
-        print(f"使用 whisper.cpp ({platform.system()})", file=sys.stderr)
+    print(f"使用 whisper.cpp ({platform.system()})", file=sys.stderr)
 
     if args.serve:
         serve(args.host, args.port, args.model)
@@ -221,7 +171,7 @@ def main() -> None:
         if not Path(args.file).exists():
             print(f"错误: 文件不存在: {args.file}", file=sys.stderr)
             sys.exit(1)
-        print(process_file(args.file, args.translate, args.language, args.model))
+        print(process_file(args.file, False, args.language, args.model))
     else:
         if sys.stdin.isatty():
             parser.print_help()
@@ -230,7 +180,7 @@ def main() -> None:
             f.write(sys.stdin.buffer.read())
             temp_path = f.name
         try:
-            print(transcribe(temp_path, args.translate, args.language, args.model))
+            print(transcribe(temp_path, False, args.language, args.model))
         finally:
             Path(temp_path).unlink(missing_ok=True)
 
