@@ -46,10 +46,3 @@ uv run --script scripts/video-dl.py -l en,ja https://www.youtube.com/watch?v=xxx
 | Dailymotion | 视频 | ✅ 支持 |
 
 完整列表: [1800+ 网站](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
-
-## 依赖
-
-- yt-dlp（uv run 自动安装）
-- imageio-ffmpeg（uv run 自动安装，内置 ffmpeg 二进制）
-
-**无需手动安装 ffmpeg**，脚本使用 `imageio-ffmpeg` 内置的 ffmpeg。
