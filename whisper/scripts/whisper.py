@@ -3,6 +3,7 @@
 # requires-python = ">=3.11"
 # dependencies = [
 #     "mlx-whisper>=0.4",
+#     "imageio-ffmpeg",
 # ]
 # ///
 """
@@ -22,6 +23,11 @@ import sys
 import tempfile
 from pathlib import Path
 
+import imageio_ffmpeg  # type: ignore[import-untyped]
+
+# Get ffmpeg path (using imageio-ffmpeg bundled ffmpeg)
+FFMPEG_PATH = imageio_ffmpeg.get_ffmpeg_exe()
+
 # 视频文件扩展名
 VIDEO_EXTENSIONS = {'.mp4', '.mkv', '.mov', '.avi', '.webm', '.flv', '.wmv', '.m4v'}
 
@@ -34,7 +40,7 @@ def is_video_file(path: str) -> bool:
 def extract_audio(video_path: str, output_path: str) -> bool:
     """Extract audio from video using ffmpeg."""
     cmd = [
-        "ffmpeg", "-y", "-i", video_path,
+        FFMPEG_PATH, "-y", "-i", video_path,
         "-vn", "-acodec", "pcm_s16le",
         "-ar", "16000", "-ac", "1",
         output_path
@@ -44,8 +50,8 @@ def extract_audio(video_path: str, output_path: str) -> bool:
 
 
 def check_ffmpeg() -> bool:
-    """Check if ffmpeg is available."""
-    return subprocess.run(["which", "ffmpeg"], capture_output=True).returncode == 0
+    """Check if ffmpeg is available (using imageio-ffmpeg bundled)."""
+    return True
 
 
 def transcribe(
@@ -73,10 +79,6 @@ def process_file(
 ) -> str:
     """Process audio or video file."""
     if is_video_file(file_path):
-        if not check_ffmpeg():
-            print("错误: 需要安装 ffmpeg", file=sys.stderr)
-            sys.exit(1)
-
         print(f"检测到视频文件, 提取音频: {file_path}", file=sys.stderr)
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
             temp_audio = f.name
