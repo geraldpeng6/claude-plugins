@@ -1,9 +1,10 @@
 #!/usr/bin/env -S uv run --script
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.11,<3.13"
 # dependencies = [
-#     "mlx-whisper>=0.4",
 #     "imageio-ffmpeg",
+#     "faster-whisper",
+#     "mlx-whisper>=0.4",
 # ]
 # ///
 """
@@ -18,6 +19,7 @@ Usage:
 
 import argparse
 import json
+import platform
 import subprocess
 import sys
 import tempfile
@@ -27,6 +29,11 @@ import imageio_ffmpeg  # type: ignore[import-untyped]
 
 # Get ffmpeg path (using imageio-ffmpeg bundled ffmpeg)
 FFMPEG_PATH = imageio_ffmpeg.get_ffmpeg_exe()
+
+# Detect platform and choose whisper backend
+IS_APPLE_SILICON = (
+    platform.system() == "Darwin" and platform.machine() in ("arm64", "arm")
+)
 
 # 视频文件扩展名
 VIDEO_EXTENSIONS = {'.mp4', '.mkv', '.mov', '.avi', '.webm', '.flv', '.wmv', '.m4v'}
@@ -58,24 +65,43 @@ def transcribe(
     audio_path: str,
     translate: bool = False,
     language: str | None = None,
-    model: str = "mlx-community/whisper-large-v3-mlx",
+    model: str | None = None,
 ) -> str:
     """Transcribe or translate audio file."""
-    import mlx_whisper  # type: ignore[import-untyped]
+    if IS_APPLE_SILICON:
+        # Use mlx-whisper on Apple Silicon (faster)
+        import mlx_whisper  # type: ignore[import-untyped]
 
-    task = "translate" if translate else "transcribe"
-    kwargs = {"path_or_hf_repo": model, "task": task}
-    if language:
-        kwargs["language"] = language
-    result = mlx_whisper.transcribe(audio_path, **kwargs)
-    return result["text"].strip()
+        model_name = model or "mlx-community/whisper-large-v3-mlx"
+        task = "translate" if translate else "transcribe"
+        kwargs = {"path_or_hf_repo": model_name, "task": task}
+        if language:
+            kwargs["language"] = language
+        result = mlx_whisper.transcribe(audio_path, **kwargs)
+        return result["text"].strip()
+    else:
+        # Use faster-whisper on other platforms (cross-platform)
+        from faster_whisper import WhisperModel  # type: ignore[import-untyped]
+
+        model_name = model or "large-v3"
+        whisper_model = WhisperModel(
+            model_name,
+            device="cpu" if platform.system() == "Windows" else "auto",
+            compute_type="int8" if platform.system() == "Windows" else "float16",
+        )
+        segments, _ = whisper_model.transcribe(
+            audio_path,
+            language=language,
+            task="translate" if translate else "transcribe",
+        )
+        return "".join(seg.text for seg in segments).strip()
 
 
 def process_file(
     file_path: str,
     translate: bool = False,
     language: str | None = None,
-    model: str = "mlx-community/whisper-large-v3-mlx",
+    model: str | None = None,
 ) -> str:
     """Process audio or video file."""
     if is_video_file(file_path):
@@ -98,19 +124,25 @@ def process_file(
 def serve(
     host: str = "127.0.0.1",
     port: int = 8765,
-    model: str = "mlx-community/whisper-large-v3-mlx",
+    model: str | None = None,
 ) -> None:
     """Start HTTP server for transcription."""
     from http.server import BaseHTTPRequestHandler
     from http.server import HTTPServer
 
-    import mlx_whisper  # type: ignore[import-untyped]
-    from mlx_whisper import load_models  # type: ignore[import-untyped]
+    if IS_APPLE_SILICON:
+        import mlx_whisper  # type: ignore[import-untyped]
+        from mlx_whisper import load_models  # type: ignore[import-untyped]
 
-    # 预加载模型
-    print(f"加载模型: {model}", file=sys.stderr)
-    load_models.load_model(model)
-    print(f"服务启动: http://{host}:{port}", file=sys.stderr)
+        model_name = model or "mlx-community/whisper-large-v3-mlx"
+        print(f"加载模型: {model_name}", file=sys.stderr)
+        load_models.load_model(model_name)
+    else:
+        from faster_whisper import WhisperModel  # type: ignore[import-untyped]
+
+        model_name = model or "large-v3"
+        print(f"加载模型: {model_name}", file=sys.stderr)
+        # Model will be loaded on first request in faster-whisper
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format: str, *args: object) -> None:
@@ -126,12 +158,30 @@ def serve(
                 temp_path = f.name
 
             try:
-                task = "translate" if translate else "transcribe"
-                kwargs = {"path_or_hf_repo": model, "task": task}
-                if language:
-                    kwargs["language"] = language
-                result = mlx_whisper.transcribe(temp_path, **kwargs)
-                text = result["text"].strip()
+                if IS_APPLE_SILICON:
+                    import mlx_whisper  # type: ignore[import-untyped]
+
+                    task = "translate" if translate else "transcribe"
+                    kwargs = {"path_or_hf_repo": model, "task": task}
+                    if language:
+                        kwargs["language"] = language
+                    result = mlx_whisper.transcribe(temp_path, **kwargs)
+                    text = result["text"].strip()
+                else:
+                    from faster_whisper import WhisperModel  # type: ignore[import-untyped]
+
+                    model_name = model or "large-v3"
+                    whisper_model = WhisperModel(
+                        model_name,
+                        device="cpu" if platform.system() == "Windows" else "auto",
+                        compute_type="int8" if platform.system() == "Windows" else "float16",
+                    )
+                    segments, _ = whisper_model.transcribe(
+                        temp_path,
+                        language=language,
+                        task="translate" if translate else "transcribe",
+                    )
+                    text = "".join(seg.text for seg in segments).strip()
 
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -159,12 +209,18 @@ def main() -> None:
     parser.add_argument("file", nargs="?", help="音频或视频文件路径")
     parser.add_argument("-t", "--translate", action="store_true", help="翻译到英语")
     parser.add_argument("-l", "--language", help="源语言代码 (如: zh, ja, en)")
-    parser.add_argument("-m", "--model", default="mlx-community/whisper-large-v3-mlx")
+    parser.add_argument("-m", "--model", help="模型名称 (默认: 自动选择)")
     parser.add_argument("--serve", action="store_true", help="启动HTTP服务")
     parser.add_argument("--host", default="127.0.0.1", help="服务地址")
     parser.add_argument("--port", type=int, default=8765, help="服务端口")
 
     args = parser.parse_args()
+
+    # Show platform info
+    if IS_APPLE_SILICON:
+        print("使用 mlx-whisper (Apple Silicon)", file=sys.stderr)
+    else:
+        print(f"使用 faster-whisper ({platform.system()})", file=sys.stderr)
 
     if args.serve:
         serve(args.host, args.port, args.model)
