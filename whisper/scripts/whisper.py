@@ -1,14 +1,17 @@
 #!/usr/bin/env -S uv run --script
 # /// script
-# requires-python = ">=3.11,<3.13"
+# requires-python = ">=3.10,<3.13"
 # dependencies = [
 #     "imageio-ffmpeg",
-#     "faster-whisper",
-#     "mlx-whisper>=0.4",
+#     "pywhispercpp",
 # ]
 # ///
 """
 whisper: Audio/video transcription tool.
+
+Backends:
+- Apple Silicon: mlx-whisper (GPU accelerated via Metal)
+- Other platforms: whisper.cpp via pywhispercpp (Vulkan/CPU)
 
 Usage:
     Single run: ./whisper.py audio.mp3
@@ -80,19 +83,14 @@ def transcribe(
         result = mlx_whisper.transcribe(audio_path, **kwargs)
         return result["text"].strip()
     else:
-        # Use faster-whisper on other platforms (cross-platform)
-        from faster_whisper import WhisperModel  # type: ignore[import-untyped]
+        # Use whisper.cpp via pywhispercpp (Vulkan/CPU, cross-platform)
+        from pywhispercpp.model import Model  # type: ignore[import-untyped]
 
         model_name = model or "large-v3"
-        whisper_model = WhisperModel(
-            model_name,
-            device="cpu" if platform.system() == "Windows" else "auto",
-            compute_type="int8" if platform.system() == "Windows" else "float16",
-        )
-        segments, _ = whisper_model.transcribe(
+        whisper_model = Model(model_name, n_threads=4)
+        segments = whisper_model.transcribe(
             audio_path,
-            language=language,
-            task="translate" if translate else "transcribe",
+            language=language if language else "",
         )
         return "".join(seg.text for seg in segments).strip()
 
@@ -138,11 +136,11 @@ def serve(
         print(f"加载模型: {model_name}", file=sys.stderr)
         load_models.load_model(model_name)
     else:
-        from faster_whisper import WhisperModel  # type: ignore[import-untyped]
+        from pywhispercpp.model import Model  # type: ignore[import-untyped]
 
         model_name = model or "large-v3"
-        print(f"加载模型: {model_name}", file=sys.stderr)
-        # Model will be loaded on first request in faster-whisper
+        print(f"加载模型: {model_name} (whisper.cpp)", file=sys.stderr)
+        # Model will be loaded on first request
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format: str, *args: object) -> None:
@@ -168,18 +166,13 @@ def serve(
                     result = mlx_whisper.transcribe(temp_path, **kwargs)
                     text = result["text"].strip()
                 else:
-                    from faster_whisper import WhisperModel  # type: ignore[import-untyped]
+                    from pywhispercpp.model import Model  # type: ignore[import-untyped]
 
                     model_name = model or "large-v3"
-                    whisper_model = WhisperModel(
-                        model_name,
-                        device="cpu" if platform.system() == "Windows" else "auto",
-                        compute_type="int8" if platform.system() == "Windows" else "float16",
-                    )
-                    segments, _ = whisper_model.transcribe(
+                    whisper_model = Model(model_name, n_threads=4)
+                    segments = whisper_model.transcribe(
                         temp_path,
-                        language=language,
-                        task="translate" if translate else "transcribe",
+                        language=language if language else "",
                     )
                     text = "".join(seg.text for seg in segments).strip()
 
@@ -218,9 +211,9 @@ def main() -> None:
 
     # Show platform info
     if IS_APPLE_SILICON:
-        print("使用 mlx-whisper (Apple Silicon)", file=sys.stderr)
+        print("使用 mlx-whisper (Apple Silicon GPU)", file=sys.stderr)
     else:
-        print(f"使用 faster-whisper ({platform.system()})", file=sys.stderr)
+        print(f"使用 whisper.cpp ({platform.system()})", file=sys.stderr)
 
     if args.serve:
         serve(args.host, args.port, args.model)
