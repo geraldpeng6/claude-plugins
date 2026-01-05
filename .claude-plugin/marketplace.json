@@ -26,6 +26,13 @@
       "license": "MIT"
     },
     {
+      "name": "video-dl",
+      "source": "./video-dl",
+      "description": "视频下载工具 - 从 YouTube、Bilibili 等 1800+ 网站下载视频和字幕",
+      "version": "0.1.0",
+      "license": "MIT"
+    },
+    {
       "name": "whisper",
       "source": "./whisper",
       "description": "Whisper 音视频转录 - 本地离线转录，支持多语言和字幕输出",

@@ -1,0 +1,10 @@
+{
+  "name": "video-dl",
+  "version": "0.1.0",
+  "description": "视频下载工具 - 从 YouTube、Bilibili 等 1800+ 网站下载视频和字幕",
+  "author": {
+    "name": "jiale"
+  },
+  "repository": "https://github.com/geraldpeng6/claude-plugins",
+  "license": "MIT"
+}
